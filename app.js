@@ -4,20 +4,25 @@ const views = require('koa-views')
 const json = require('koa-json')
 const onerror = require('koa-onerror')
 const bodyparser = require('koa-bodyparser')
-const logger = require('koa-logger')
+const router = require('koa-router')()
+// log4js
+const logger = require('./utils/log4j')
 
-const index = require('./routes/index')
 const users = require('./routes/users')
+
+// connect mongodb
+require('./config/db')
 
 // error handler
 onerror(app)
 
 // middlewares
 app.use(bodyparser({
-  enableTypes:['json', 'form', 'text']
+  enableTypes: ['json', 'form', 'text']
 }))
+
 app.use(json())
-app.use(logger())
+// app.use(logger())
 app.use(require('koa-static')(__dirname + '/public'))
 
 app.use(views(__dirname + '/views', {
@@ -26,19 +31,19 @@ app.use(views(__dirname + '/views', {
 
 // logger
 app.use(async (ctx, next) => {
-  const start = new Date()
+  logger.info(`get params:${JSON.stringify(ctx.request.query)}`)
+  logger.info(`post params: ${JSON.stringify(ctx.request.body)}`)
   await next()
-  const ms = new Date() - start
-  console.log(`${ctx.method} ${ctx.url} - ${ms}ms`)
 })
 
+router.prefix('/api')
+router.use(users.routes(), users.allowedMethods())
 // routes
-app.use(index.routes(), index.allowedMethods())
-app.use(users.routes(), users.allowedMethods())
+app.use(router.routes(), router.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {
-  console.error('server error', err, ctx)
+  logger.error(`${err.stack}`)
 });
 
 module.exports = app
